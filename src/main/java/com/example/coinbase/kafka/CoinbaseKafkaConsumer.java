@@ -1,7 +1,6 @@
 package com.example.coinbase.kafka;
 
 import com.example.normalizer.constants.Exchange;
-import com.example.normalizer.dto.NormalizedData;
 import com.example.normalizer.entity.CanonicalData;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
