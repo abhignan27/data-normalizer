@@ -10,7 +10,7 @@ import java.math.BigDecimal;
 public class CanonicalData {
 
     @Id
-    public Long id = 1L;
+    public Long id;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "EXCHANGE")

@@ -1,3 +1,5 @@
 databaseChangeLog:
   - include:
       file: db/migrations/v1.0.0_create_canonical_data.yaml
+  - include:
+      file: db/migrations/v1.1.0_create_historic_data.yaml
