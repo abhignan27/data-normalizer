@@ -1,0 +1,3 @@
+databaseChangeLog:
+  - include:
+      file: db/migrations/v1.0.0_create_canonical_data.yaml

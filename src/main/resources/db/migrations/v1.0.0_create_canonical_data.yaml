@@ -1,0 +1,45 @@
+databaseChangeLog:
+        - changeSet:
+                  id: 1
+                  author: solo-developer
+                  changes:
+                          - createTable:
+                                    tableName: CANONICAL_DATA
+                                    columns:
+                                            - column:
+                                                      name: id
+                                                      type: BIGINT
+                                                      constraints:
+                                                              primaryKey: true
+                                                              nullable: false
+                                            - column:
+                                                      name: EXCHANGE
+                                                      type: VARCHAR(50)
+                                                      constraints:
+                                                              nullable: false
+                                            - column:
+                                                      name: SYMBOL
+                                                      type: VARCHAR(30)
+                                                      constraints:
+                                                              nullable: false
+                                            - column:
+                                                      name: ASK_PRICE
+                                                      type: NUMERIC(38,8)
+                                            - column:
+                                                      name: BID_PRICE
+                                                      type: NUMERIC(38,8)
+                                            - column:
+                                                      name: LAST_PRICE
+                                                      type: NUMERIC(38,8)
+                                            - column:
+                                                      name: ASK_QUANTITY
+                                                      type: NUMERIC(38,8)
+                                            - column:
+                                                      name: BID_QUANTITY
+                                                      type: NUMERIC(38,8)
+                                            - column:
+                                                      name: RECEIVED_TIMESTAMP
+                                                      type: VARCHAR(100)
+                                            - column:
+                                                      name: RECORDED_TIMESTAMP
+                                                      type: VARCHAR(100)

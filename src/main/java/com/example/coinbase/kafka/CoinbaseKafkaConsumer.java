@@ -2,10 +2,13 @@ package com.example.coinbase.kafka;
 
 import com.example.normalizer.constants.Exchange;
 import com.example.normalizer.dto.NormalizedData;
+import com.example.normalizer.entity.CanonicalData;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.quarkus.hibernate.orm.panache.Panache;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
 
 import java.math.BigDecimal;
@@ -18,6 +21,7 @@ public class CoinbaseKafkaConsumer {
     ObjectMapper objectMapper;
 
     @Incoming("coinbase-adapter-in")
+    @Transactional
     public void consume(String payload){
         try {
             JsonNode rootNode = objectMapper.readTree(payload);
@@ -30,17 +34,17 @@ public class CoinbaseKafkaConsumer {
                     JsonNode tickersArray = eventNode.path("tickers");
                     if (tickersArray.isArray()) {
                         for (JsonNode tickerNode : tickersArray) {
-                            NormalizedData normalizedData = new NormalizedData();
-                            normalizedData.setExchange(Exchange.COINBASE);
-                            normalizedData.setReceivedTimeStamp(receivedTimeStamp);
-                            normalizedData.setAskPrice(new BigDecimal(tickerNode.path("best_ask").asText()));
-                            normalizedData.setBidPrice(new BigDecimal(tickerNode.path("best_bid").asText()));
-                            normalizedData.setLastPrice(new BigDecimal(tickerNode.path("price").asText()));
-                            normalizedData.setAskQuantity(new BigDecimal(tickerNode.path("best_ask_quantity").asText()));
-                            normalizedData.setBidQuantity(new BigDecimal(tickerNode.path("best_bid_quantity").asText()));
-                            normalizedData.setSymbol(tickerNode.path("product_id").asText());
-                            normalizedData.setRecordedTimeStamp(Instant.now().toString());
-                            System.out.println("Normalized coinbase data -> " + normalizedData.toString());
+                            CanonicalData canonicalData = new CanonicalData();
+                            canonicalData.exchange = Exchange.COINBASE;
+                            canonicalData.receivedTimeStamp = receivedTimeStamp;
+                            canonicalData.askPrice = (new BigDecimal(tickerNode.path("best_ask").asText()));
+                            canonicalData.bidPrice = (new BigDecimal(tickerNode.path("best_bid").asText()));
+                            canonicalData.lastPrice = (new BigDecimal(tickerNode.path("price").asText()));
+                            canonicalData.askQuantity = (new BigDecimal(tickerNode.path("best_ask_quantity").asText()));
+                            canonicalData.bidQuantity = (new BigDecimal(tickerNode.path("best_bid_quantity").asText()));
+                            canonicalData.symbol = (tickerNode.path("product_id").asText());
+                            canonicalData.recordedTimeStamp = (Instant.now().toString());
+                            Panache.getEntityManager().merge(canonicalData);
                         }
                     }
                 }
