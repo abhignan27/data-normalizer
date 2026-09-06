@@ -6,6 +6,7 @@ import com.example.normalizer.entity.HistoricData;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.hibernate.orm.panache.Panache;
+import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -65,7 +66,8 @@ public class CoinbaseKafkaConsumer {
                 }
             }
         } catch (Exception e) {
-            throw new RuntimeException("Error while parsing or persisting codebase stream data", e);
+            Log.error(String.format("Error parsing or persisting Coinbase stream data due to exception %s with message %s", e.getClass().toString(), e.getMessage()));
+            throw new RuntimeException("Error while parsing or persisting coinbase stream data", e);
         }
     }
 }
