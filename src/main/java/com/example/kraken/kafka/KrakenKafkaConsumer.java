@@ -7,13 +7,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.hibernate.orm.panache.Panache;
 import io.quarkus.logging.Log;
+import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import org.eclipse.microprofile.reactive.messaging.Incoming;
-
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 @ApplicationScoped
@@ -21,6 +23,8 @@ public class KrakenKafkaConsumer {
 
     @Inject
     ObjectMapper objectMapper;
+
+    Map<String, CanonicalData> latestPriceCache = new HashMap<>();
 
     @Incoming("kraken-adapter-in")
     @Transactional
@@ -50,6 +54,7 @@ public class KrakenKafkaConsumer {
             canonicalData.lastPrice = new BigDecimal(detailsPayload.path("c").get(0).asText());
 
             Panache.getEntityManager().merge(canonicalData);
+            latestPriceCache.put(canonicalData.symbol, canonicalData);
 
             HistoricData historicData = new HistoricData();
             historicData.exchange = Exchange.KRAKEN;
@@ -66,6 +71,34 @@ public class KrakenKafkaConsumer {
         catch (Exception e){
             Log.error(String.format("Error parsing or persisting Kraken stream data due to exception %s with message %s", e.getClass().toString(), e.getMessage()));
             throw new RuntimeException("Error while parsing or persisting kraken stream data", e);
+        }
+    }
+
+    @Scheduled(every = "1s")
+    @Transactional
+    public void saveHistorySnapshot(){
+        if(latestPriceCache.isEmpty()){
+            Log.info("Latest Kraken price cache is empty returning");
+            return;
+        }
+
+        Log.info("Saving Kraken history snapshot");
+
+        HistoricData historicData = new HistoricData();
+
+        for(Map.Entry<String, CanonicalData> entry: latestPriceCache.entrySet()){
+            CanonicalData latest = entry.getValue();
+
+            historicData.exchange = Exchange.KRAKEN;
+            historicData.symbol = entry.getKey();
+            historicData.askPrice = latest.askPrice;
+            historicData.askQuantity = latest.askQuantity;
+            historicData.bidPrice = latest.bidPrice;
+            historicData.bidQuantity = latest.bidQuantity;
+            historicData.lastPrice = latest.lastPrice;
+            historicData.recordedTimeStamp = Instant.now().toString();
+
+            Panache.getEntityManager().persist(historicData);
         }
     }
 }

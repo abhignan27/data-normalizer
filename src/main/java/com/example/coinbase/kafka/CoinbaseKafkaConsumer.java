@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.hibernate.orm.panache.Panache;
 import io.quarkus.logging.Log;
+import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -14,12 +15,16 @@ import org.eclipse.microprofile.reactive.messaging.Incoming;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 
 @ApplicationScoped
 public class CoinbaseKafkaConsumer {
 
     @Inject
     ObjectMapper objectMapper;
+
+    private final Map<String, CanonicalData> latestPriceCache = new HashMap<>();
 
     @Incoming("coinbase-adapter-in")
     @Transactional
@@ -48,19 +53,7 @@ public class CoinbaseKafkaConsumer {
                             canonicalData.bidQuantity = new BigDecimal(tickerNode.path("best_bid_quantity").asText());
 
                             Panache.getEntityManager().merge(canonicalData);
-
-                            HistoricData historicData = new HistoricData();
-                            historicData.exchange = Exchange.COINBASE;
-                            historicData.symbol = tickerNode.path("product_id").asText();
-                            historicData.receivedTimeStamp = receivedTimeStamp;
-                            historicData.recordedTimeStamp = Instant.now().toString();
-                            historicData.askPrice = canonicalData.askPrice;
-                            historicData.bidPrice = canonicalData.bidPrice;
-                            historicData.lastPrice = canonicalData.lastPrice;
-                            historicData.askQuantity = canonicalData.askQuantity;
-                            historicData.bidQuantity = canonicalData.bidQuantity;
-
-                            Panache.getEntityManager().persist(historicData);
+                            latestPriceCache.put(canonicalData.symbol, canonicalData);
                         }
                     }
                 }
@@ -68,6 +61,34 @@ public class CoinbaseKafkaConsumer {
         } catch (Exception e) {
             Log.error(String.format("Error parsing or persisting Coinbase stream data due to exception %s with message %s", e.getClass().toString(), e.getMessage()));
             throw new RuntimeException("Error while parsing or persisting coinbase stream data", e);
+        }
+    }
+
+    @Scheduled(every = "1s")
+    @Transactional
+    public void saveHistorySnapshot(){
+        if(latestPriceCache.isEmpty()){
+            Log.info("Latest Coinbase price cache is empty returning");
+            return;
+        }
+        Log.info("Saving Coinbase history snapshot");
+        for(Map.Entry<String, CanonicalData> entry: latestPriceCache.entrySet()){
+            CanonicalData latest = entry.getValue();
+
+            HistoricData historicData = new HistoricData();
+
+            historicData.exchange = Exchange.COINBASE;
+            historicData.symbol = entry.getKey();
+            historicData.receivedTimeStamp = latest.receivedTimeStamp;
+            historicData.recordedTimeStamp = latest.recordedTimeStamp;
+            historicData.askPrice = latest.askPrice;
+            historicData.bidPrice = latest.bidPrice;
+            historicData.lastPrice = latest.lastPrice;
+            historicData.askQuantity = latest.askQuantity;
+            historicData.bidQuantity = latest.bidQuantity;
+
+            Panache.getEntityManager().persist(historicData);
+
         }
     }
 }
